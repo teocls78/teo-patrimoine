@@ -1,0 +1,788 @@
+<!DOCTYPE html>
+<html lang="fr" data-theme="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=5">
+<meta name="theme-color" content="#f9f9f7" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0d0d0d" media="(prefers-color-scheme: dark)">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Patrimoine">
+<meta name="description" content="Suivi du patrimoine : livrets, SCPI, cryptomonnaies.">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icon-180.png">
+<link rel="icon" href="icon-192.png">
+<title>Patrimoine de Téo</title>
+<style>
+:root{
+  color-scheme: light;
+  --surface-1:#fcfcfb; --plane:#f9f9f7;
+  --text-primary:#0b0b0b; --text-secondary:#52514e; --text-muted:#898781;
+  --grid:#e1e0d9; --axis:#c3c2b7; --border:rgba(11,11,11,0.10);
+  --good:#006300; --bad:#d03b3b;
+  --s1:#2a78d6; --s2:#eb6834; --s3:#1baf7a; --s4:#eda100; --s5:#e87ba4;
+  --field:#ffffff;
+}
+:root[data-theme="dark"]{
+  color-scheme: dark;
+  --surface-1:#1a1a19; --plane:#0d0d0d;
+  --text-primary:#ffffff; --text-secondary:#c3c2b7; --text-muted:#898781;
+  --grid:#2c2c2a; --axis:#383835; --border:rgba(255,255,255,0.10);
+  --good:#0ca30c; --bad:#e66767;
+  --s1:#3987e5; --s2:#d95926; --s3:#199e70; --s4:#c98500; --s5:#d55181;
+  --field:#222221;
+}
+*{box-sizing:border-box}
+body{
+  margin:0; background:var(--plane); color:var(--text-primary);
+  font-family:system-ui,-apple-system,"Segoe UI",sans-serif; font-size:15px; line-height:1.5;
+}
+.wrap{max-width:1080px;margin:0 auto;
+  padding:calc(20px + env(safe-area-inset-top)) calc(18px + env(safe-area-inset-right))
+          calc(48px + env(safe-area-inset-bottom)) calc(18px + env(safe-area-inset-left));}
+html{-webkit-text-size-adjust:100%}
+body{-webkit-tap-highlight-color:transparent;overscroll-behavior-y:contain}
+header.top{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:20px}
+header.top h1{font-size:20px;margin:0;font-weight:650;letter-spacing:-.01em}
+.spacer{flex:1}
+button{
+  font:inherit;font-size:13.5px;padding:7px 13px;border-radius:8px;cursor:pointer;
+  background:var(--surface-1);color:var(--text-primary);border:1px solid var(--border);
+}
+button:hover{background:var(--plane)}
+button.primary{background:var(--s1);color:#fff;border-color:transparent;font-weight:550}
+button.primary:hover{filter:brightness(1.08)}
+button.ghost{background:transparent}
+.card{
+  background:var(--surface-1);border:1px solid var(--border);border-radius:14px;
+  padding:20px;margin-bottom:16px;
+}
+.card > h2{font-size:13px;text-transform:uppercase;letter-spacing:.06em;color:var(--text-secondary);
+  margin:0 0 16px;font-weight:600}
+.hero-label{font-size:13px;color:var(--text-secondary);margin-bottom:2px}
+.hero{font-size:52px;font-weight:650;letter-spacing:-.02em;line-height:1.05}
+.hero-sub{font-size:13.5px;color:var(--text-secondary);margin-top:6px}
+.delta.up{color:var(--good)} .delta.down{color:var(--bad)}
+.tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:1px;
+  background:var(--border);border-radius:12px;overflow:hidden;margin-top:20px}
+.tile{background:var(--surface-1);padding:14px 16px}
+.tile .l{font-size:12px;color:var(--text-secondary);display:flex;align-items:center;gap:7px}
+.tile .dot{width:9px;height:9px;border-radius:50%;flex:none}
+.tile .v{font-size:22px;font-weight:600;margin-top:4px;letter-spacing:-.01em}
+.tile .d{font-size:12px;color:var(--text-muted);margin-top:1px}
+table{width:100%;border-collapse:collapse;font-size:14px}
+th{text-align:left;font-weight:550;font-size:12px;color:var(--text-secondary);
+  text-transform:uppercase;letter-spacing:.05em;padding:0 10px 8px;border-bottom:1px solid var(--grid)}
+th.num,td.num{text-align:right;font-variant-numeric:tabular-nums}
+td{padding:9px 10px;border-bottom:1px solid var(--grid);vertical-align:middle}
+tbody tr:last-child td{border-bottom:none}
+.namecell{display:flex;align-items:center;gap:9px}
+.swatch{width:10px;height:10px;border-radius:3px;flex:none}
+input[type=text],input[type=number],input[type=date]{
+  font:inherit;font-size:14px;padding:6px 9px;border-radius:7px;
+  border:1px solid var(--border);background:var(--field);color:var(--text-primary);width:100%;
+}
+input.numin{text-align:right;font-variant-numeric:tabular-nums}
+input:focus{outline:2px solid var(--s1);outline-offset:-1px}
+.sub{font-size:12.5px;color:var(--text-muted)}
+.grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:16px}
+.kv{display:flex;justify-content:space-between;gap:12px;padding:7px 0;border-bottom:1px solid var(--grid);font-size:14px}
+.kv:last-child{border-bottom:none}
+.kv .k{color:var(--text-secondary)}
+.kv .v{font-weight:550;font-variant-numeric:tabular-nums}
+.legend{display:flex;flex-wrap:wrap;gap:14px;margin-top:14px;font-size:12.5px;color:var(--text-secondary)}
+.legend span{display:flex;align-items:center;gap:6px}
+.tip{
+  position:fixed;pointer-events:none;opacity:0;transition:opacity .1s;z-index:50;
+  background:var(--surface-1);border:1px solid var(--border);border-radius:9px;
+  padding:9px 11px;font-size:12.5px;box-shadow:0 6px 20px rgba(0,0,0,.14);min-width:150px;
+}
+.tip .th{font-weight:600;margin-bottom:5px;font-size:12px}
+.tip .tr{display:flex;justify-content:space-between;gap:14px;padding:1.5px 0}
+.tip .tr .n{display:flex;align-items:center;gap:6px;color:var(--text-secondary)}
+.tip .tr .val{font-variant-numeric:tabular-nums}
+.meter{height:8px;border-radius:4px;background:var(--grid);overflow:hidden;margin-top:6px}
+.meter > i{display:block;height:100%;border-radius:4px}
+.rowbtns{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px}
+.note{font-size:12.5px;color:var(--text-muted);margin-top:12px;line-height:1.55}
+.empty{color:var(--text-muted);font-size:13.5px;padding:24px 0;text-align:center}
+svg text{font-family:inherit}
+.hidden{display:none!important}
+.pill{font-size:11.5px;padding:2px 8px;border-radius:20px;background:var(--plane);
+  border:1px solid var(--border);color:var(--text-secondary)}
+@media print{.noprint{display:none!important}}
+
+/* ---------------- Téléphone ---------------- */
+@media (max-width:680px){
+  body{font-size:16px}
+  .wrap{padding-top:calc(12px + env(safe-area-inset-top))}
+  header.top{gap:8px;margin-bottom:12px}
+  header.top h1{font-size:17px;flex:1 0 auto}
+  header.top .pill{order:9;flex-basis:100%}
+  button{padding:9px 12px;font-size:13px;min-height:40px}
+  .card{padding:16px 14px;border-radius:12px}
+  .hero{font-size:38px}
+  .tiles{grid-template-columns:1fr 1fr}
+  .tile .v{font-size:19px}
+  table thead{display:none}
+  #assetRows tr{display:block;padding:14px 0;border-bottom:1px solid var(--grid)}
+  #assetRows tr:last-child{border-bottom:none}
+  #assetRows td{display:block;border:none;padding:0}
+  #assetRows td:nth-child(1){margin-bottom:8px}
+  #assetRows td:nth-child(2){margin-bottom:12px}
+  #assetRows td:nth-child(2)::before{content:"Valeur actuelle (€)";display:block;
+    font-size:11.5px;text-transform:uppercase;letter-spacing:.05em;
+    color:var(--text-secondary);margin-bottom:4px;text-align:left}
+  #assetRows input{font-size:16px;padding:10px 11px}  /* 16px : évite le zoom auto d'iOS */
+  #assetRows input.numin{font-size:17px;font-weight:550}
+  .sub label{display:block;margin-bottom:2px}
+  .rowbtns{display:grid;grid-template-columns:1fr;gap:8px}
+  .grid2{gap:22px}
+  .kv{font-size:15px}
+  .tip{max-width:78vw}
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="top">
+  <h1>Patrimoine de Téo</h1>
+  <span class="pill" id="asof"></span>
+  <span class="spacer"></span>
+  <button class="ghost noprint" id="btnTheme">Mode sombre</button>
+  <button class="ghost noprint" id="btnImport">Restaurer</button>
+  <button class="ghost noprint" id="btnExport">Copie de secours</button>
+  <input type="file" id="fileIn" accept="application/json" class="hidden">
+</header>
+
+<!-- ============ SYNTHESE ============ -->
+<section class="card">
+  <div class="hero-label">Patrimoine total</div>
+  <div class="hero" id="heroTotal">—</div>
+  <div class="hero-sub" id="heroDelta"></div>
+  <div class="tiles" id="tiles"></div>
+</section>
+
+<!-- ============ ACTIFS ============ -->
+<section class="card">
+  <h2>Ses actifs — saisie</h2>
+  <table>
+    <thead><tr>
+      <th style="width:38%">Actif</th>
+      <th class="num" style="width:24%">Valeur actuelle (€)</th>
+      <th style="width:38%">Détail</th>
+    </tr></thead>
+    <tbody id="assetRows"></tbody>
+  </table>
+  <div class="rowbtns noprint">
+    <button id="btnSnap">Enregistrer un relevé daté</button>
+    <button class="ghost" id="btnDemo">Charger un exemple</button>
+    <button class="ghost" id="btnReset">Tout remettre à zéro</button>
+  </div>
+  <p class="note" id="saveNote">Le relevé daté fige le total du jour dans l'historique.
+  <strong>Tout est enregistré automatiquement sur cet appareil</strong> — rien n'est envoyé sur internet.
+  « Copie de secours » télécharge un fichier de sauvegarde à conserver ailleurs.</p>
+</section>
+
+<!-- ============ REPARTITION ============ -->
+<section class="card">
+  <h2>Répartition</h2>
+  <div id="repChart"></div>
+  <div class="legend" id="repLegend"></div>
+  <div class="note">Trois blocs d'épargne réglementée, une poche immobilière et une poche crypto. Les pourcentages sont calculés sur le patrimoine total.</div>
+</section>
+
+<!-- ============ EVOLUTION ============ -->
+<section class="card">
+  <h2>Évolution du patrimoine</h2>
+  <div id="evoChart"></div>
+  <div id="evoTable"></div>
+</section>
+
+<!-- ============ RENDEMENT ============ -->
+<section class="card">
+  <h2>Rendement &amp; plus-values</h2>
+  <div class="grid2">
+    <div>
+      <div class="namecell" style="margin-bottom:10px">
+        <span class="swatch" style="background:var(--s4)"></span>
+        <strong id="scpiName">SCPI</strong>
+      </div>
+      <div id="scpiBlock"></div>
+    </div>
+    <div>
+      <div class="namecell" style="margin-bottom:10px">
+        <span class="swatch" style="background:var(--s5)"></span>
+        <strong id="cryptoName">Cryptomonnaies</strong>
+      </div>
+      <div id="cryptoBlock"></div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ EPARGNE REGLEMENTEE ============ -->
+<section class="card">
+  <h2>Épargne réglementée — plafonds</h2>
+  <div id="ceilings"></div>
+  <div class="note">Taux Livret A et Livret Jeune : <strong>1,70 %</strong> depuis le 1<sup>er</sup> août 2026 (le Livret Jeune ne peut pas rémunérer moins que le Livret A ; certaines banques font mieux — ajustez le taux dans la saisie). Plafonds : 22 950 € pour le Livret A, 1 600 € pour le Livret Jeune (hors intérêts capitalisés).</div>
+</section>
+
+</div>
+<div class="tip" id="tip"></div>
+
+<script>
+"use strict";
+
+/* ---------- Modèle ---------- */
+const DEFAULT_STATE = {
+  meta: { updated: null },
+  assets: [
+    { id:"cc",  label:"Compte courant", color:"--s1", value:0, kind:"cash" },
+    { id:"la",  label:"Livret A",       color:"--s2", value:0, kind:"livret", ceiling:22950, rate:1.70 },
+    { id:"lj",  label:"Livret Jeune",   color:"--s3", value:0, kind:"livret", ceiling:1600,  rate:1.70 },
+    { id:"scpi",label:"SCPI",           color:"--s4", value:0, kind:"scpi",
+      shares:0, buyPrice:0, unitValue:0, dividends:0, sinceYears:1 },
+    { id:"cry", label:"Cryptomonnaies", color:"--s5", value:0, kind:"crypto",
+      invested:0 }
+  ],
+  history: []   // { date:"YYYY-MM-DD", values:{id:number} }
+};
+
+let S = JSON.parse(JSON.stringify(DEFAULT_STATE));
+
+/* ---------- Sauvegarde automatique sur l'appareil ---------- */
+const STORE_KEY = "patrimoine-teo-v1";
+let saveTimer = null, storageOK = true;
+function saveLocal(){
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(()=>{
+    try{ localStorage.setItem(STORE_KEY, JSON.stringify(S)); }
+    catch(_){ storageOK = false; flagNoStorage(); }
+  }, 250);
+}
+function loadLocal(){
+  try{
+    const raw = localStorage.getItem(STORE_KEY);
+    if(!raw) return false;
+    const o = JSON.parse(raw);
+    if(!o || !Array.isArray(o.assets)) return false;
+    S = adopt(o); return true;
+  }catch(_){ return false; }
+}
+// Fusionne un état chargé avec la structure par défaut (tolère une sauvegarde plus ancienne)
+function adopt(o){
+  const base = JSON.parse(JSON.stringify(DEFAULT_STATE));
+  base.meta = Object.assign(base.meta, o.meta || {});
+  base.assets = base.assets.map(def => Object.assign(def, (o.assets||[]).find(x=>x.id===def.id) || {}));
+  base.history = Array.isArray(o.history) ? o.history.filter(h=>h && h.date && h.values) : [];
+  return base;
+}
+function flagNoStorage(){
+  const n = document.getElementById("saveNote");
+  if(n && !n.dataset.warned){
+    n.dataset.warned = "1";
+    n.innerHTML = "<strong>Attention :</strong> ce navigateur refuse l'enregistrement local " +
+      "(navigation privée ?). Utilisez « Copie de secours » avant de fermer.";
+  }
+}
+const A = id => S.assets.find(a => a.id === id);
+
+/* ---------- Formats ---------- */
+// Accepte "2400", "2 400", "2400,50", "2.400,50", "2400.50", "12 €" → nombre
+function num(v){
+  let s = String(v ?? "").replace(/[\s  €%]/g, "");
+  if(!s) return 0;
+  const lastC = s.lastIndexOf(","), lastD = s.lastIndexOf(".");
+  if(lastC > -1 && lastD > -1){
+    // le séparateur décimal est le dernier des deux ; l'autre sépare les milliers
+    if(lastC > lastD) s = s.replace(/\./g,"").replace(",",".");
+    else              s = s.replace(/,/g,"");
+  } else if(lastC > -1){
+    s = s.replace(",", ".");
+  }
+  const n = parseFloat(s);
+  return isFinite(n) ? n : 0;
+}
+const eur = n => new Intl.NumberFormat("fr-FR",{style:"currency",currency:"EUR",maximumFractionDigits:0}).format(n||0);
+const eur2 = n => new Intl.NumberFormat("fr-FR",{style:"currency",currency:"EUR",minimumFractionDigits:2,maximumFractionDigits:2}).format(n||0);
+const pct = n => (n>=0?"+":"") + new Intl.NumberFormat("fr-FR",{maximumFractionDigits:1}).format(n) + " %";
+const pct0 = n => new Intl.NumberFormat("fr-FR",{maximumFractionDigits:1}).format(n) + " %";
+const dFR = s => { const [y,m,d]=s.split("-"); return `${d}/${m}/${y}`; };
+const dShort = s => { const [y,m,d]=s.split("-"); return `${d}/${m}/${y.slice(2)}`; };
+const dTiny  = s => { const [y,m]=s.split("-"); return `${m}/${y.slice(2)}`; };
+const eurK = n => Math.abs(n) >= 10000
+  ? new Intl.NumberFormat("fr-FR",{maximumFractionDigits:0}).format(Math.round(n/1000)) + " k€"
+  : eur(n);
+const today = () => new Date().toISOString().slice(0,10);
+const css = v => getComputedStyle(document.documentElement).getPropertyValue(v).trim();
+const narrow = () => window.innerWidth < 680;
+// Valeur affichée dans un champ de saisie : vide si 0, virgule décimale à la française
+const fld = v => (v || v===0) && +v !== 0 ? String(v).replace(".", ",") : "";
+const esc = s => String(s).replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+
+const total = () => S.assets.reduce((t,a)=>t+(+a.value||0),0);
+const totalOf = h => Object.values(h.values).reduce((t,v)=>t+(+v||0),0);
+
+/* ---------- Rendu ---------- */
+// render()  = reconstruit tout, y compris les champs de saisie (chargement, exemple, import, RAZ)
+// refresh() = ne met à jour QUE les vues calculées — les champs de saisie ne sont jamais recréés
+//             pendant la frappe, sinon les caractères se perdent.
+function render(){ renderAssets(); refresh(); }
+
+function refresh(){
+  renderHero(); renderTiles();
+  renderRepartition(); renderEvolution(); renderYield(); renderCeilings();
+  renderAssetComputed();
+  document.getElementById("asof").textContent =
+    S.meta.updated ? "Mis à jour le " + dFR(S.meta.updated) : "Aucune donnée saisie";
+  if(storageOK) saveLocal();
+}
+
+// Met à jour les petits calculs affichés dans le tableau de saisie, sans toucher aux <input>.
+function renderAssetComputed(){
+  S.assets.filter(a=>a.kind==="livret").forEach(a=>{
+    const el=document.querySelector(`[data-calc="${a.id}"]`);
+    if(el) el.textContent = eur2((+a.value||0)*(+a.rate||0)/100);
+  });
+}
+
+function renderHero(){
+  const t = total();
+  document.getElementById("heroTotal").textContent = t ? eur(t) : "—";
+  const el = document.getElementById("heroDelta");
+  let past = S.history.filter(h => totalOf(h) > 0);
+  // ignorer un relevé identique au total courant : il ne dit rien de l'évolution
+  while(past.length && Math.abs(totalOf(past[past.length-1]) - t) < 0.5) past = past.slice(0,-1);
+  if(past.length && t){
+    const prev = totalOf(past[past.length-1]);
+    const diff = t - prev, p = prev ? diff/prev*100 : 0;
+    el.className = "hero-sub delta " + (diff>=0?"up":"down");
+    el.innerHTML = `${diff>=0?"▲":"▼"} ${eur(Math.abs(diff))} (${pct(p)}) depuis le relevé du ${dFR(past[past.length-1].date)}`;
+  } else {
+    el.className = "hero-sub";
+    el.textContent = t ? "Enregistrez un relevé daté pour suivre l'évolution." : "Saisissez vos montants ci-dessous pour démarrer.";
+  }
+}
+
+function renderTiles(){
+  const t = total();
+  const liquid = (+A("cc").value||0) + (+A("la").value||0) + (+A("lj").value||0);
+  const scpi = A("scpi"), cry = A("cry");
+  const scpiCost = (+scpi.shares||0) * (+scpi.buyPrice||0);
+  const gain = ((+scpi.value||0) - scpiCost) + ((+cry.value||0) - (+cry.invested||0));
+  const cost = scpiCost + (+cry.invested||0);
+  const tiles = [
+    { l:"Épargne disponible", c:"--s1", v:liquid, d:t? pct0(liquid/t*100)+" du patrimoine":"" },
+    { l:"Immobilier (SCPI)",  c:"--s4", v:+scpi.value||0, d:t? pct0((+scpi.value||0)/t*100)+" du patrimoine":"" },
+    { l:"Cryptomonnaies",     c:"--s5", v:+cry.value||0,  d:t? pct0((+cry.value||0)/t*100)+" du patrimoine":"" },
+    { l:"Plus-value latente", c:null,   v:gain, d: cost? pct(gain/cost*100)+" sur "+eur(cost)+" investis" : "SCPI + crypto", signed:true }
+  ];
+  document.getElementById("tiles").innerHTML = tiles.map(x=>`
+    <div class="tile">
+      <div class="l">${x.c?`<span class="dot" style="background:var(${x.c})"></span>`:""}${x.l}</div>
+      <div class="v" ${x.signed?`style="color:${x.v>=0?"var(--good)":"var(--bad)"}"`:""}>${x.signed&&x.v>0?"+":""}${eur(x.v)}</div>
+      <div class="d">${x.d}</div>
+    </div>`).join("");
+}
+
+function renderAssets(){
+  const rows = S.assets.map(a=>{
+    let detail = "";
+    if(a.kind==="livret")
+      detail = `<div class="sub">Plafond ${eur(a.ceiling)} · taux
+        <input type="text" inputmode="decimal" class="numin" data-f="rate" data-id="${a.id}" value="${fld(a.rate)}"
+        style="width:74px;display:inline-block;padding:3px 6px"> %
+        → <span data-calc="${a.id}">${eur2((+a.value||0)*(+a.rate||0)/100)}</span> / an</div>`;
+    else if(a.kind==="scpi")
+      detail = `<div class="sub" style="display:grid;grid-template-columns:1fr 1fr;gap:6px 10px">
+        <label>Parts détenues<input type="text" inputmode="decimal" class="numin" data-f="shares" data-id="scpi" value="${fld(a.shares)}"></label>
+        <label>Prix d'achat / part<input type="text" inputmode="decimal" class="numin" data-f="buyPrice" data-id="scpi" value="${fld(a.buyPrice)}"></label>
+        <label>Valeur actuelle / part<input type="text" inputmode="decimal" class="numin" data-f="unitValue" data-id="scpi" value="${fld(a.unitValue)}"></label>
+        <label>Dividendes perçus (cumul)<input type="text" inputmode="decimal" class="numin" data-f="dividends" data-id="scpi" value="${fld(a.dividends)}"></label>
+        <label style="grid-column:1/-1">Années de détention<input type="text" inputmode="decimal" class="numin" data-f="sinceYears" data-id="scpi" value="${fld(a.sinceYears)}"></label>
+      </div>`;
+    else if(a.kind==="crypto")
+      detail = `<div class="sub"><label>Total investi (prix de revient)
+        <input type="text" inputmode="decimal" class="numin" data-f="invested" data-id="cry" value="${fld(a.invested)}"></label></div>`;
+    else
+      detail = `<div class="sub">Liquidités, non rémunérées</div>`;
+
+    return `<tr>
+      <td><div class="namecell"><span class="swatch" style="background:var(${a.color})"></span>
+        <input type="text" data-f="label" data-id="${a.id}" value="${esc(a.label)}" style="border-color:transparent;background:transparent;padding-left:0;font-weight:550"></div></td>
+      <td class="num"><input type="text" inputmode="decimal" class="numin" data-f="value" data-id="${a.id}" value="${fld(a.value)}" placeholder="0" title="${a.kind==="scpi"?"Recalculé automatiquement si vous modifiez les parts ou la valeur de part":"Montant actuel"}"></td>
+      <td>${detail}</td>
+    </tr>`;
+  }).join("");
+  document.getElementById("assetRows").innerHTML = rows;
+}
+
+/* ---------- Répartition : barres horizontales ---------- */
+function renderRepartition(){
+  const host = document.getElementById("repChart");
+  const data = S.assets.map(a=>({label:a.label,value:+a.value||0,color:css(a.color)}))
+                       .filter(d=>d.value>0).sort((a,b)=>b.value-a.value);
+  const t = data.reduce((s,d)=>s+d.value,0);
+  if(!t){ host.innerHTML = `<div class="empty">Saisissez au moins un montant pour voir la répartition.</div>`;
+          document.getElementById("repLegend").innerHTML=""; return; }
+
+  const setLegend = () => document.getElementById("repLegend").innerHTML = data.map(d=>
+    `<span><i style="width:10px;height:10px;border-radius:3px;background:${d.color};display:inline-block"></i>${esc(d.label)}</span>`).join("");
+
+  if(narrow()){
+    // Téléphone : libellé et montant sur une ligne, barre pleine largeur en dessous
+    const W=340, rowH=46, barH=14, topB=17, H=data.length*rowH;
+    const mx=Math.max(...data.map(d=>d.value));
+    let g=`<svg viewBox="0 0 ${W} ${H}" style="width:100%;height:auto" role="img" aria-label="Répartition du patrimoine par actif">`;
+    data.forEach((d,i)=>{
+      const y=i*rowH, w=Math.max(3, d.value/mx*W);
+      g+=`<text x="0" y="${y+11}" font-size="12.5" fill="${css("--text-primary")}">${esc(d.label)}</text>`;
+      g+=`<text x="${W}" y="${y+11}" text-anchor="end" font-size="12.5" fill="${css("--text-primary")}" font-variant-numeric="tabular-nums">${eur(d.value)}<tspan fill="${css("--text-muted")}"> · ${pct0(d.value/t*100)}</tspan></text>`;
+      g+=`<rect x="0" y="${y+topB}" width="${w}" height="${barH}" rx="4" fill="${d.color}"/>`;
+      g+=`<rect x="0" y="${y+topB}" width="${Math.min(w,4)}" height="${barH}" fill="${d.color}"/>`;
+    });
+    host.innerHTML = g + `</svg>`;
+    setLegend();
+    return;
+  }
+
+  const rowH=38, barH=22, padL=0, padR=140, W=900, H=data.length*rowH+8;
+  const labelW=190, plotX=labelW, plotW=W-labelW-padR;
+  const max = Math.max(...data.map(d=>d.value));
+
+  let svg = `<svg viewBox="0 0 ${W} ${H}" style="width:100%;height:auto;overflow:visible" role="img" aria-label="Répartition du patrimoine par actif">`;
+  data.forEach((d,i)=>{
+    const y=i*rowH+ (rowH-barH)/2;
+    const w=Math.max(2, d.value/max*plotW);
+    svg += `<text x="${plotX-14}" y="${y+barH/2+4}" text-anchor="end" font-size="13.5" fill="${css("--text-primary")}">${esc(d.label)}</text>`;
+    svg += `<rect class="hb" data-i="${i}" x="${plotX}" y="${y}" width="${w}" height="${barH}" rx="4" fill="${d.color}"/>`;
+    svg += `<rect x="${plotX}" y="${y}" width="${Math.min(w,4)}" height="${barH}" fill="${d.color}"/>`;
+    svg += `<text x="${plotX+w+12}" y="${y+barH/2+4}" font-size="13.5" fill="${css("--text-primary")}" font-variant-numeric="tabular-nums">${eur(d.value)}</text>`;
+    svg += `<text x="${plotX+w+12}" y="${y+barH/2+4}" font-size="13.5" fill="${css("--text-muted")}" font-variant-numeric="tabular-nums" dx="${eur(d.value).length*8.2+10}">${pct0(d.value/t*100)}</text>`;
+    svg += `<rect class="hit" data-i="${i}" x="${plotX}" y="${i*rowH}" width="${plotW+padR}" height="${rowH}" fill="transparent" style="cursor:default"/>`;
+  });
+  svg += `</svg>`;
+  host.innerHTML = svg;
+
+  host.querySelectorAll(".hit").forEach(r=>{
+    r.addEventListener("mousemove", e=>{
+      const d=data[+r.dataset.i];
+      showTip(e, `<div class="th">${esc(d.label)}</div>
+        <div class="tr"><span class="n"><span class="dot" style="width:8px;height:8px;border-radius:50%;background:${d.color};display:inline-block"></span>Montant</span><span class="val">${eur2(d.value)}</span></div>
+        <div class="tr"><span class="n">Part</span><span class="val">${pct0(d.value/t*100)}</span></div>`);
+    });
+    r.addEventListener("mouseleave", hideTip);
+  });
+
+  setLegend();
+}
+
+/* ---------- Évolution : courbe ---------- */
+function renderEvolution(){
+  const host = document.getElementById("evoChart");
+  const tbl  = document.getElementById("evoTable");
+  const pts = S.history.slice().sort((a,b)=>a.date.localeCompare(b.date));
+  if(pts.length < 2){
+    host.innerHTML = `<div class="empty">${pts.length===0
+      ? "Aucun relevé enregistré. Cliquez sur « Enregistrer un relevé daté » pour créer le premier point."
+      : "Un seul relevé enregistré — il en faut deux pour tracer une courbe."}</div>`;
+    tbl.innerHTML = pts.length===1 ? histTable(pts) : ""; return;
+  }
+  const N=narrow();
+  const W=N?340:900, H=N?196:280, mL=N?44:76, mR=N?8:24, mT=N?12:16, mB=N?24:34;
+  const pw=W-mL-mR, ph=H-mT-mB;
+  const vals = pts.map(totalOf);
+  const vmax = Math.max(...vals), vmin = Math.min(...vals);
+  const lo = Math.max(0, vmin - (vmax-vmin||vmax||1)*0.25);
+  const hi = vmax + (vmax-vmin||vmax||1)*0.12;
+  const X = i => mL + (pts.length===1?pw/2:i/(pts.length-1)*pw);
+  const Y = v => mT + ph - (v-lo)/((hi-lo)||1)*ph;
+  const ticks = niceTicks(lo,hi,4);
+  const col = css("--s1");
+
+  let svg=`<svg viewBox="0 0 ${W} ${H}" style="width:100%;height:auto" role="img" aria-label="Évolution du patrimoine total">`;
+  ticks.forEach(t=>{
+    svg+=`<line x1="${mL}" x2="${W-mR}" y1="${Y(t)}" y2="${Y(t)}" stroke="${css("--grid")}" stroke-width="1"/>`;
+    svg+=`<text x="${mL-8}" y="${Y(t)+3.5}" text-anchor="end" font-size="${N?9.5:11.5}" fill="${css("--text-muted")}" font-variant-numeric="tabular-nums">${N?eurK(t):eur(t)}</text>`;
+  });
+  svg+=`<line x1="${mL}" x2="${W-mR}" y1="${mT+ph}" y2="${mT+ph}" stroke="${css("--axis")}" stroke-width="1"/>`;
+  const area = `M ${X(0)} ${mT+ph} ` + pts.map((p,i)=>`L ${X(i)} ${Y(vals[i])}`).join(" ") + ` L ${X(pts.length-1)} ${mT+ph} Z`;
+  svg+=`<path d="${area}" fill="${col}" opacity="0.10"/>`;
+  svg+=`<path d="${pts.map((p,i)=>(i?"L":"M")+" "+X(i)+" "+Y(vals[i])).join(" ")}" fill="none" stroke="${col}" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>`;
+  pts.forEach((p,i)=>{
+    svg+=`<circle cx="${X(i)}" cy="${Y(vals[i])}" r="${N?3.5:4.5}" fill="${col}" stroke="${css("--surface-1")}" stroke-width="2"/>`;
+    const step = Math.ceil(pts.length/(N?3:7));
+    if(i%step===0 || i===pts.length-1){
+      const first=i===0, last2=i===pts.length-1;
+      const anchor = first ? "start" : (last2 ? "end" : "middle");
+      const x = first ? mL : (last2 ? W-mR : X(i));
+      svg+=`<text x="${x}" y="${H-8}" text-anchor="${anchor}" font-size="${N?9.5:11.5}" fill="${css("--text-muted")}">${N?dTiny(p.date):dShort(p.date)}</text>`;
+    }
+  });
+  const last=pts.length-1;
+  svg+=`<text x="${X(last)}" y="${Y(vals[last])-12}" text-anchor="end" font-size="${N?11:13}" font-weight="600" fill="${css("--text-primary")}">${eur(vals[last])}</text>`;
+  svg+=`<line id="cross" x1="0" x2="0" y1="${mT}" y2="${mT+ph}" stroke="${css("--axis")}" stroke-width="1" opacity="0"/>`;
+  svg+=`<rect id="evohit" x="${mL}" y="${mT}" width="${pw}" height="${ph}" fill="transparent"/>`;
+  svg+=`</svg>`;
+  host.innerHTML=svg;
+
+  const hit=host.querySelector("#evohit"), cross=host.querySelector("#cross"), svgEl=host.querySelector("svg");
+  hit.addEventListener("mousemove", e=>{
+    const r=svgEl.getBoundingClientRect();
+    const px=(e.clientX-r.left)/r.width*W;
+    let i=Math.round((px-mL)/(pw/(pts.length-1))); i=Math.max(0,Math.min(pts.length-1,i));
+    cross.setAttribute("x1",X(i)); cross.setAttribute("x2",X(i)); cross.setAttribute("opacity","1");
+    const p=pts[i];
+    const rows = S.assets.map(a=>{
+      const v=+p.values[a.id]||0; if(!v) return "";
+      return `<div class="tr"><span class="n"><span style="width:8px;height:8px;border-radius:2px;background:${css(a.color)};display:inline-block"></span>${esc(a.label)}</span><span class="val">${eur(v)}</span></div>`;
+    }).join("");
+    showTip(e, `<div class="th">${dFR(p.date)}</div>
+      <div class="tr"><span class="n"><strong>Total</strong></span><span class="val"><strong>${eur(totalOf(p))}</strong></span></div>${rows}`);
+  });
+  hit.addEventListener("mouseleave", ()=>{ cross.setAttribute("opacity","0"); hideTip(); });
+  // Tactile : un appui affiche le détail du relevé le plus proche
+  hit.addEventListener("touchstart", e=>{
+    const t0=e.touches[0];
+    hit.dispatchEvent(new MouseEvent("mousemove",{clientX:t0.clientX,clientY:t0.clientY}));
+  }, {passive:true});
+  hit.addEventListener("touchend", ()=>{
+    setTimeout(()=>{ cross.setAttribute("opacity","0"); hideTip(); }, 2500);
+  }, {passive:true});
+
+  tbl.innerHTML = histTable(pts);
+}
+
+function histTable(pts){
+  const rows = pts.slice().reverse().map((p,idx,arr)=>{
+    const t=totalOf(p);
+    const nxt = arr[idx+1] ? totalOf(arr[idx+1]) : null;
+    const d = nxt!==null ? t-nxt : null;
+    return `<tr>
+      <td>${dFR(p.date)}</td>
+      <td class="num">${eur(t)}</td>
+      <td class="num" style="color:${d===null?"var(--text-muted)":(d>=0?"var(--good)":"var(--bad)")}">${d===null?"—":(d>=0?"+":"")+eur(d)}</td>
+      <td class="num noprint"><button class="ghost" data-del="${p.date}" style="padding:3px 9px;font-size:12px">Supprimer</button></td>
+    </tr>`;
+  }).join("");
+  return `<details style="margin-top:18px"><summary style="cursor:pointer;font-size:13px;color:var(--text-secondary)">Voir les relevés (${pts.length})</summary>
+    <table style="margin-top:12px"><thead><tr><th>Date</th><th class="num">Total</th><th class="num">Variation</th><th class="noprint"></th></tr></thead>
+    <tbody>${rows}</tbody></table></details>`;
+}
+
+function niceTicks(lo,hi,n){
+  const span=hi-lo||1, raw=span/n, mag=Math.pow(10,Math.floor(Math.log10(raw)));
+  const step=[1,2,2.5,5,10].map(m=>m*mag).find(s=>s>=raw)||10*mag;
+  const out=[]; for(let v=Math.ceil(lo/step)*step; v<=hi+1e-9; v+=step) out.push(Math.round(v));
+  return out;
+}
+
+/* ---------- Rendement ---------- */
+function renderYield(){
+  const s=A("scpi"), c=A("cry");
+  document.getElementById("scpiName").textContent = s.label;
+  document.getElementById("cryptoName").textContent = c.label;
+
+  const cost=(+s.shares||0)*(+s.buyPrice||0), val=+s.value||0, pv=val-cost;
+  const yrs=Math.max(0.1,+s.sinceYears||1);
+  const annualDiv=(+s.dividends||0)/yrs;
+  const dvm = cost? annualDiv/cost*100 : 0;
+  const tri = cost? ((+s.dividends||0)+pv)/cost*100 : 0;
+  document.getElementById("scpiBlock").innerHTML = cost||val ? `
+    <div class="kv"><span class="k">Capital investi</span><span class="v">${eur2(cost)}</span></div>
+    <div class="kv"><span class="k">Valorisation actuelle</span><span class="v">${eur2(val)}</span></div>
+    <div class="kv"><span class="k">Plus/moins-value latente</span><span class="v" style="color:${pv>=0?"var(--good)":"var(--bad)"}">${pv>=0?"+":""}${eur2(pv)}${cost?" ("+pct(pv/cost*100)+")":""}</span></div>
+    <div class="kv"><span class="k">Dividendes encaissés</span><span class="v">${eur2(+s.dividends||0)}</span></div>
+    <div class="kv"><span class="k">Rendement distribué (annualisé)</span><span class="v">${pct0(dvm)}</span></div>
+    <div class="kv"><span class="k">Performance globale</span><span class="v" style="color:${tri>=0?"var(--good)":"var(--bad)"}">${pct(tri)}</span></div>`
+    : `<div class="empty">Renseignez le nombre de parts et les prix pour calculer le rendement.</div>`;
+
+  const ci=+c.invested||0, cv=+c.value||0, cpv=cv-ci;
+  document.getElementById("cryptoBlock").innerHTML = ci||cv ? `
+    <div class="kv"><span class="k">Total investi</span><span class="v">${eur2(ci)}</span></div>
+    <div class="kv"><span class="k">Valorisation actuelle</span><span class="v">${eur2(cv)}</span></div>
+    <div class="kv"><span class="k">Plus/moins-value latente</span><span class="v" style="color:${cpv>=0?"var(--good)":"var(--bad)"}">${cpv>=0?"+":""}${eur2(cpv)}</span></div>
+    <div class="kv"><span class="k">Performance</span><span class="v" style="color:${cpv>=0?"var(--good)":"var(--bad)"}">${ci?pct(cpv/ci*100):"—"}</span></div>
+    <div class="kv"><span class="k">Multiple</span><span class="v">${ci?(cv/ci).toFixed(2).replace(".",",")+" ×":"—"}</span></div>`
+    : `<div class="empty">Renseignez le total investi pour calculer la plus-value.</div>`;
+}
+
+/* ---------- Plafonds ---------- */
+function renderCeilings(){
+  const items=S.assets.filter(a=>a.kind==="livret");
+  document.getElementById("ceilings").innerHTML = items.map(a=>{
+    const v=+a.value||0, r=Math.min(1, v/a.ceiling);
+    const col = r>=1 ? css("--s2") : css("--s1");
+    return `<div style="margin-bottom:16px">
+      <div style="display:flex;justify-content:space-between;font-size:13.5px">
+        <span class="namecell"><span class="swatch" style="background:var(${a.color})"></span>${esc(a.label)}</span>
+        <span style="font-variant-numeric:tabular-nums">${eur(v)} / ${eur(a.ceiling)} · <span style="color:var(--text-secondary)">${pct0(r*100)}</span></span>
+      </div>
+      <div class="meter"><i style="width:${r*100}%;background:${col}"></i></div>
+      <div class="sub" style="margin-top:4px">${v>=a.ceiling
+        ? "Plafond atteint — les versements ne sont plus possibles (les intérêts continuent de s'ajouter)."
+        : "Encore " + eur(a.ceiling-v) + " de versements possibles · intérêts estimés " + eur2(v*(+a.rate||0)/100) + " / an"}</div>
+    </div>`;
+  }).join("");
+}
+
+/* ---------- Tooltip ---------- */
+const tip=document.getElementById("tip");
+function showTip(e,html){
+  tip.innerHTML=html; tip.style.opacity="1";
+  const r=tip.getBoundingClientRect();
+  let x=e.clientX+14, y=e.clientY+14;
+  if(x+r.width>window.innerWidth-8) x=e.clientX-r.width-14;
+  if(y+r.height>window.innerHeight-8) y=e.clientY-r.height-14;
+  tip.style.left=x+"px"; tip.style.top=y+"px";
+}
+function hideTip(){ tip.style.opacity="0"; }
+
+/* ---------- Interactions ---------- */
+document.getElementById("assetRows").addEventListener("input", e=>{
+  const f=e.target.dataset.f, id=e.target.dataset.id;
+  if(!f) return;
+  const a=A(id); if(!a) return;
+  a[f] = f==="label" ? e.target.value : num(e.target.value);
+  if(a.kind==="scpi" && (f==="shares"||f==="unitValue") && (+a.shares>0 && +a.unitValue>0)){
+    a.value = +((+a.shares)*(+a.unitValue)).toFixed(2);
+    const vi=document.querySelector('input[data-f="value"][data-id="scpi"]');
+    if(vi && document.activeElement!==vi) vi.value = fld(a.value);
+  }
+  S.meta.updated = today();
+  refresh();   // surtout pas render() : cela recréerait le champ en cours de frappe
+});
+
+// À l'entrée dans un champ chiffré, on sélectionne tout : taper remplace au lieu de s'ajouter.
+// Sélection synchrone + mouseup neutralisé, sinon le clic replace le curseur après coup
+// et les premiers caractères saisis sont écrasés.
+const rows = document.getElementById("assetRows");
+rows.addEventListener("focusin", e=>{
+  if(e.target.classList && e.target.classList.contains("numin")){
+    try{ e.target.select(); }catch(_){}
+    e.target.dataset.sel = "1";
+  }
+});
+rows.addEventListener("mouseup", e=>{
+  if(e.target.dataset && e.target.dataset.sel === "1"){ e.preventDefault(); delete e.target.dataset.sel; }
+});
+
+// À la sortie du champ, on normalise l'affichage (nettoie « 12 abc », « 2 400 » → 2400)
+document.getElementById("assetRows").addEventListener("focusout", e=>{
+  const f=e.target.dataset.f, id=e.target.dataset.id;
+  if(!f || f==="label") return;
+  const a=A(id); if(!a) return;
+  e.target.value = fld(a[f]);
+});
+
+document.getElementById("evoTable").addEventListener("click", e=>{
+  const d=e.target.dataset.del; if(!d) return;
+  S.history = S.history.filter(h=>h.date!==d); render();
+});
+
+document.getElementById("btnSnap").addEventListener("click", ()=>{
+  if(!total()){ alert("Saisissez au moins un montant avant d'enregistrer un relevé."); return; }
+  const date = prompt("Date du relevé (JJ/MM/AAAA) :", dFR(today()));
+  if(!date) return;
+  const m = date.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+  if(!m){ alert("Format attendu : JJ/MM/AAAA"); return; }
+  const iso = `${m[3]}-${m[2]}-${m[1]}`;
+  const values={}; S.assets.forEach(a=>values[a.id]=+a.value||0);
+  S.history = S.history.filter(h=>h.date!==iso);
+  S.history.push({date:iso, values});
+  S.history.sort((a,b)=>a.date.localeCompare(b.date));
+  S.meta.updated = today();
+  render();
+});
+
+document.getElementById("btnExport").addEventListener("click", ()=>{
+  S.meta.updated = S.meta.updated || today();
+  const blob = new Blob([JSON.stringify(S,null,2)],{type:"application/json"});
+  const url=URL.createObjectURL(blob), a=document.createElement("a");
+  a.href=url; a.download=`patrimoine-teo-${today()}.json`; a.click();
+  setTimeout(()=>URL.revokeObjectURL(url),1000);
+});
+
+document.getElementById("btnImport").addEventListener("click", ()=>document.getElementById("fileIn").click());
+document.getElementById("fileIn").addEventListener("change", e=>{
+  const f=e.target.files[0]; if(!f) return;
+  const rd=new FileReader();
+  rd.onload=()=>{ try{
+      const o=JSON.parse(rd.result);
+      if(!o.assets || !Array.isArray(o.assets)) throw new Error("format");
+      if(total()>0 && !confirm("Remplacer les données actuelles par celles du fichier ?")) return;
+      S = adopt(o);
+      render();
+    }catch(_){ alert("Fichier illisible : sélectionnez un fichier exporté par cette application."); }
+  };
+  rd.readAsText(f); e.target.value="";
+});
+
+document.getElementById("btnDemo").addEventListener("click", ()=>{
+  S = {
+    meta:{updated:today()},
+    assets:[
+      {id:"cc",label:"Compte courant",color:"--s1",value:2400,kind:"cash"},
+      {id:"la",label:"Livret A",color:"--s2",value:14500,kind:"livret",ceiling:22950,rate:1.70},
+      {id:"lj",label:"Livret Jeune",color:"--s3",value:1600,kind:"livret",ceiling:1600,rate:2.00},
+      {id:"scpi",label:"SCPI",color:"--s4",value:0,kind:"scpi",shares:12,buyPrice:204,unitValue:198,dividends:372,sinceYears:2.5},
+      {id:"cry",label:"Cryptomonnaies",color:"--s5",value:5200,kind:"crypto",invested:3000}
+    ],
+    history:[
+      {date:"2026-02-15",values:{cc:1800,la:12000,lj:1400,scpi:2448,cry:3400}},
+      {date:"2026-04-15",values:{cc:2100,la:13000,lj:1500,scpi:2412,cry:4100}},
+      {date:"2026-06-15",values:{cc:2600,la:13800,lj:1600,scpi:2388,cry:4600}},
+      {date:"2026-08-15",values:{cc:2400,la:14500,lj:1600,scpi:2376,cry:5200}}
+    ]
+  };
+  A("scpi").value = 12*198;
+  render();
+});
+
+document.getElementById("btnReset").addEventListener("click", ()=>{
+  if(!confirm("Effacer toutes les données saisies ? Pensez à sauvegarder avant.")) return;
+  S = JSON.parse(JSON.stringify(DEFAULT_STATE)); render();
+});
+
+document.getElementById("btnTheme").addEventListener("click", ()=>{
+  const dark = document.documentElement.dataset.theme==="dark";
+  document.documentElement.dataset.theme = dark ? "light" : "dark";
+  document.getElementById("btnTheme").textContent = dark ? "Mode sombre" : "Mode clair";
+  try{ localStorage.setItem(STORE_KEY+"-theme", document.documentElement.dataset.theme); }catch(_){}
+  render();
+});
+(function(){
+  let t=null; try{ t=localStorage.getItem(STORE_KEY+"-theme"); }catch(_){}
+  if(!t && window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches) t="dark";
+  if(t==="dark"){
+    document.documentElement.dataset.theme="dark";
+    document.getElementById("btnTheme").textContent="Mode clair";
+  }
+})();
+
+/* ---------- Redessin des graphiques à la rotation de l'écran ---------- */
+let resizeT=null, lastW=window.innerWidth;
+window.addEventListener("resize", ()=>{
+  clearTimeout(resizeT);
+  resizeT=setTimeout(()=>{
+    if(Math.abs(window.innerWidth-lastW) < 24) return;
+    lastW=window.innerWidth; refresh();
+  }, 180);
+});
+
+/* ---------- Démarrage ---------- */
+try{ localStorage.setItem(STORE_KEY+"-test","1"); localStorage.removeItem(STORE_KEY+"-test"); }
+catch(_){ storageOK = false; }
+
+loadLocal();
+render();
+if(!storageOK) flagNoStorage();
+
+/* ---------- Fonctionnement hors connexion ---------- */
+if("serviceWorker" in navigator)
+  window.addEventListener("load", ()=> navigator.serviceWorker.register("sw.js").catch(()=>{}));
+</script>
+</body>
+</html>
