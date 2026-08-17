@@ -3,7 +3,7 @@
    Les données patrimoniales ne passent jamais par ici : elles restent
    dans le stockage local du téléphone et ne quittent pas l'appareil. */
 
-const CACHE = "patrimoine-v1";
+const CACHE = "patrimoine-v2";
 const SHELL = [
   "./",
   "./index.html",
