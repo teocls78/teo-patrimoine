@@ -164,6 +164,29 @@ nav.tabs button[aria-selected="true"]{color:var(--s1)}
   nav.tabs button[aria-selected="true"]{background:var(--plane);color:var(--text-primary)}
   .tabwrap{max-width:960px;margin:0 auto;padding:0 16px}
 }
+/* ---------- écran de verrouillage ---------- */
+#lock{position:fixed;inset:0;z-index:90;background:var(--plane);display:none;
+  flex-direction:column;align-items:center;justify-content:center;
+  padding:calc(24px + env(safe-area-inset-top)) 20px calc(24px + env(safe-area-inset-bottom))}
+#lock.on{display:flex}
+#lock .lk-ico{width:42px;height:42px;stroke:var(--text-secondary);fill:none;stroke-width:1.6;
+  stroke-linecap:round;stroke-linejoin:round;margin-bottom:14px}
+#lock h2{font-size:17px;font-weight:600;margin:0 0 4px;text-align:center}
+#lock p.hint{font-size:13.5px;color:var(--text-secondary);margin:0 0 22px;text-align:center;max-width:300px}
+.dots{display:flex;gap:14px;margin-bottom:8px}
+.dots i{width:13px;height:13px;border-radius:50%;border:1.6px solid var(--text-muted);display:block}
+.dots i.f{background:var(--text-primary);border-color:var(--text-primary)}
+.lk-msg{font-size:13px;min-height:20px;margin:10px 0 16px;color:var(--bad);text-align:center}
+.pad{display:grid;grid-template-columns:repeat(3,74px);gap:14px;justify-content:center}
+.pad button{height:74px;border-radius:50%;font-size:24px;font-weight:450;
+  background:var(--surface-1);border:1px solid var(--border);padding:0}
+.pad button.blank{background:transparent;border-color:transparent;cursor:default}
+.pad button.act{font-size:15px}
+#lock .forgot{margin-top:26px;font-size:13px;color:var(--text-secondary);
+  background:none;border:none;text-decoration:underline;cursor:pointer}
+.shake{animation:shk .32s}
+@keyframes shk{0%,100%{transform:translateX(0)}25%{transform:translateX(-7px)}75%{transform:translateX(7px)}}
+
 .tip{position:fixed;pointer-events:none;opacity:0;transition:opacity .1s;z-index:50;
   background:var(--surface-1);border:1px solid var(--border);border-radius:9px;
   padding:9px 11px;font-size:12.5px;box-shadow:0 6px 20px rgba(0,0,0,.14);
@@ -242,7 +265,18 @@ svg text{font-family:inherit}
       </div>
       <p class="note">Les données vivent dans la mémoire de ce navigateur, sur cet appareil. « Copie de secours »
         télécharge un fichier à ranger dans iCloud ou à s'envoyer par mail — indispensable avant de changer de
-        téléphone. « Restaurer » le relit ensuite.</p>
+        téléphone. « Restaurer » le relit ensuite.<br><br>
+        <strong>Ce fichier est en clair</strong>, même si un code protège l'application : c'est votre seul
+        recours en cas de code oublié. Rangez-le dans un endroit sûr.</p>
+    </div>
+
+    <div class="card">
+      <h2>Sécurité</h2>
+      <div id="secState" class="sub" style="margin-bottom:12px"></div>
+      <div class="rowbtns" style="margin-top:0" id="secBtns"></div>
+      <p class="note">Le code chiffre réellement les données enregistrées sur cet appareil : sans lui, il ne reste
+        qu'une suite de caractères illisibles, même pour quelqu'un qui fouillerait la mémoire du navigateur.
+        <strong>Aucun moyen de le réinitialiser</strong> — gardez une copie de secours à jour.</p>
     </div>
 
     <div class="card">
@@ -355,6 +389,16 @@ svg text{font-family:inherit}
   </div>
 </div>
 
+<div id="lock">
+  <svg class="lk-ico" viewBox="0 0 24 24"><rect x="4" y="10" width="16" height="11" rx="2.5"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg>
+  <h2 id="lkTitle">Code d'accès</h2>
+  <p class="hint" id="lkHint">Saisissez votre code à 6 chiffres.</p>
+  <div class="dots" id="lkDots"><i></i><i></i><i></i><i></i><i></i><i></i></div>
+  <div class="lk-msg" id="lkMsg"></div>
+  <div class="pad" id="lkPad"></div>
+  <button class="forgot" id="lkForgot">Code oublié ?</button>
+</div>
+
 <div class="tip" id="tip"></div>
 
 <script>
@@ -396,12 +440,18 @@ let saveTimer=null, storageOK=true;
 
 function saveLocal(){
   clearTimeout(saveTimer);
-  saveTimer = setTimeout(()=>{
-    try{ localStorage.setItem(KEY, JSON.stringify(S)); }
-    catch(_){ storageOK=false; flagNoStorage(); }
+  saveTimer = setTimeout(async ()=>{
+    try{
+      // Garde-fou : tant que l'application est verrouillée, on n'écrit rien —
+      // sinon un état vide écraserait les données chiffrées.
+      const rec = storedRecord();
+      if(rec && rec.enc && !cryptoKey) return;
+      const payload = cryptoKey ? JSON.stringify(await encryptState()) : JSON.stringify(S);
+      localStorage.setItem(KEY, payload);
+    }catch(_){ storageOK=false; flagNoStorage(); }
   },250);
 }
-function loadLocal(){
+function loadPlainOrV1(){
   try{
     const raw = localStorage.getItem(KEY);
     if(raw){ const o=JSON.parse(raw); if(o && Array.isArray(o.assets)){ S=adopt(o); return true; } }
@@ -458,6 +508,41 @@ function flagNoStorage(){
 }
 
 /* =====================================================================
+   CHIFFREMENT
+   Le code à 6 chiffres ne « masque » pas l'écran : il dérive une clé
+   (PBKDF2-SHA256, 310 000 tours) qui chiffre réellement les données
+   en AES-GCM. Sans le code, le stockage local ne contient que du bruit.
+   ===================================================================== */
+const SUB = (window.crypto && window.crypto.subtle) ? window.crypto.subtle : null;
+const ITER = 310000;
+let cryptoKey = null;        // clé dérivée, présente uniquement une fois déverrouillé
+let saltBytes = null;        // sel de dérivation, conservé avec les données
+let hiddenAt = 0;
+
+const b64   = u8 => { let s=""; u8.forEach(b=>s+=String.fromCharCode(b)); return btoa(s); };
+const unb64 = str => Uint8Array.from(atob(str), c=>c.charCodeAt(0));
+
+async function deriveKey(pin, salt){
+  const base = await SUB.importKey("raw", new TextEncoder().encode(pin), "PBKDF2", false, ["deriveKey"]);
+  return SUB.deriveKey({name:"PBKDF2", salt, iterations:ITER, hash:"SHA-256"},
+                       base, {name:"AES-GCM", length:256}, false, ["encrypt","decrypt"]);
+}
+async function encryptState(){
+  const iv = crypto.getRandomValues(new Uint8Array(12));
+  const ct = await SUB.encrypt({name:"AES-GCM", iv}, cryptoKey,
+                               new TextEncoder().encode(JSON.stringify(S)));
+  return { enc:1, v:2, salt:b64(saltBytes), iv:b64(iv), ct:b64(new Uint8Array(ct)) };
+}
+async function decryptRecord(rec, key){
+  const buf = await SUB.decrypt({name:"AES-GCM", iv:unb64(rec.iv)}, key, unb64(rec.ct));
+  return JSON.parse(new TextDecoder().decode(buf));
+}
+function storedRecord(){
+  try{ const r=localStorage.getItem(KEY); return r?JSON.parse(r):null; }catch(_){ return null; }
+}
+const isLocked = () => document.getElementById("lock").classList.contains("on");
+
+/* =====================================================================
    FORMATS
    ===================================================================== */
 function num(v){
@@ -498,6 +583,7 @@ function render(){
   document.getElementById("asof").textContent =
     S.meta.updated ? "Dernière modification le "+dFR(S.meta.updated) : "";
   if(storageOK) saveLocal();
+  if(document.getElementById("secBtns")) renderSecurity();
 }
 
 function renderHero(){
@@ -1026,6 +1112,142 @@ document.getElementById("btnTheme").addEventListener("click", ()=>{
 })();
 
 /* =====================================================================
+   ÉCRAN DE VERROUILLAGE
+   ===================================================================== */
+const lockEl=document.getElementById("lock");
+let pinBuf="", pinMode="unlock", pinFirst="", onPinDone=null;
+
+(function buildPad(){
+  const keys=["1","2","3","4","5","6","7","8","9","","0","⌫"];
+  document.getElementById("lkPad").innerHTML = keys.map(k=>
+    k==="" ? `<button class="blank" disabled aria-hidden="true"></button>`
+           : `<button type="button" data-k="${k}"${k==="⌫"?' class="act" aria-label="Effacer"':''}>${k}</button>`
+  ).join("");
+  document.getElementById("lkPad").addEventListener("click", e=>{
+    const b=e.target.closest("[data-k]"); if(!b) return;
+    press(b.dataset.k);
+  });
+})();
+
+function drawDots(){
+  document.querySelectorAll("#lkDots i").forEach((d,i)=>d.classList.toggle("f", i<pinBuf.length));
+}
+function press(k){
+  if(k==="⌫"){ pinBuf=pinBuf.slice(0,-1); drawDots(); return; }
+  if(pinBuf.length>=6) return;
+  pinBuf+=k; drawDots();
+  if(pinBuf.length===6) setTimeout(()=>onPinDone && onPinDone(pinBuf), 90);
+}
+function pinReset(msg){
+  pinBuf=""; drawDots();
+  document.getElementById("lkMsg").textContent = msg || "";
+  if(msg){ lockEl.querySelector(".dots").classList.add("shake");
+           setTimeout(()=>lockEl.querySelector(".dots").classList.remove("shake"),340); }
+}
+function lockUI(title, hint, forgot){
+  document.getElementById("lkTitle").textContent=title;
+  document.getElementById("lkHint").textContent=hint;
+  document.getElementById("lkForgot").classList.toggle("hidden", !forgot);
+  pinReset(""); lockEl.classList.add("on");
+}
+function closeLock(){ lockEl.classList.remove("on"); pinBuf=""; drawDots(); onPinDone=null; }
+
+/* --- déverrouillage au démarrage --- */
+function askUnlock(rec){
+  saltBytes = unb64(rec.salt);
+  lockUI("Patrimoine de Téo", "Saisissez votre code à 6 chiffres.", true);
+  onPinDone = async code => {
+    document.getElementById("lkMsg").style.color="var(--text-secondary)";
+    document.getElementById("lkMsg").textContent="Vérification…";
+    try{
+      const key = await deriveKey(code, saltBytes);
+      const data = await decryptRecord(rec, key);
+      cryptoKey = key; S = adopt(data);
+      document.getElementById("lkMsg").style.color="var(--bad)";
+      closeLock(); render();
+    }catch(_){
+      document.getElementById("lkMsg").style.color="var(--bad)";
+      pinReset("Code incorrect.");
+    }
+  };
+}
+
+/* --- définir / changer / retirer le code --- */
+function askNewPin(){
+  if(!SUB){ alert("Ce navigateur ne permet pas le chiffrement (connexion non sécurisée)."); return; }
+  pinMode="set"; pinFirst="";
+  lockUI("Nouveau code", "Choisissez un code à 6 chiffres. Notez-le : il est impossible de le retrouver.", false);
+  onPinDone = code => {
+    if(!pinFirst){
+      pinFirst=code;
+      document.getElementById("lkTitle").textContent="Confirmez";
+      document.getElementById("lkHint").textContent="Saisissez à nouveau le même code.";
+      pinReset(""); return;
+    }
+    if(code!==pinFirst){ pinFirst=""; 
+      document.getElementById("lkTitle").textContent="Nouveau code";
+      document.getElementById("lkHint").textContent="Choisissez un code à 6 chiffres.";
+      pinReset("Les deux codes diffèrent."); return; }
+    (async ()=>{
+      saltBytes = crypto.getRandomValues(new Uint8Array(16));
+      cryptoKey = await deriveKey(code, saltBytes);
+      localStorage.setItem(KEY, JSON.stringify(await encryptState()));
+      closeLock(); renderSecurity();
+      alert("Code activé. Vos données sont désormais chiffrées sur cet appareil.");
+    })();
+  };
+}
+function askRemovePin(){
+  const rec=storedRecord(); if(!rec || !rec.enc) return;
+  lockUI("Retirer le code", "Saisissez votre code actuel pour le désactiver.", false);
+  onPinDone = async code => {
+    try{
+      const key=await deriveKey(code, unb64(rec.salt));
+      await decryptRecord(rec, key);
+      cryptoKey=null; saltBytes=null;
+      localStorage.setItem(KEY, JSON.stringify(S));
+      closeLock(); renderSecurity();
+      alert("Code retiré. Les données ne sont plus chiffrées.");
+    }catch(_){ pinReset("Code incorrect."); }
+  };
+}
+document.getElementById("lkForgot").addEventListener("click", ()=>{
+  alert("Il n'existe aucun moyen de retrouver un code oublié : c'est lui qui déchiffre les données.\n\n"+
+        "La seule issue est d'effacer les données de cet appareil, puis de restaurer votre fichier de copie de secours.");
+  if(confirm("Effacer les données chiffrées de cet appareil et repartir de zéro ?")){
+    try{ localStorage.removeItem(KEY); }catch(_){}
+    location.reload();
+  }
+});
+
+function renderSecurity(){
+  const rec=storedRecord(), on = !!(rec && rec.enc) || !!cryptoKey;
+  const st=document.getElementById("secState"), bt=document.getElementById("secBtns");
+  if(!SUB){
+    st.innerHTML="Le chiffrement n'est pas disponible ici (la page doit être servie en <code>https</code>).";
+    bt.innerHTML=""; return;
+  }
+  st.innerHTML = on
+    ? "<strong>Code actif.</strong> Les données de cet appareil sont chiffrées ; l'application se verrouille à l'ouverture et après une minute en arrière-plan."
+    : "<strong>Aucun code.</strong> Les données sont enregistrées en clair sur cet appareil : quiconque le déverrouille peut les lire.";
+  bt.innerHTML = on
+    ? `<button id="btnPinChange">Changer le code</button><button class="ghost" id="btnPinOff">Retirer le code</button>`
+    : `<button class="primary" id="btnPinOn">Protéger par un code</button>`;
+  const on1=document.getElementById("btnPinOn"); if(on1) on1.addEventListener("click", askNewPin);
+  const ch=document.getElementById("btnPinChange"); if(ch) ch.addEventListener("click", askNewPin);
+  const off=document.getElementById("btnPinOff"); if(off) off.addEventListener("click", askRemovePin);
+}
+
+/* --- reverrouillage après un passage en arrière-plan --- */
+document.addEventListener("visibilitychange", ()=>{
+  if(document.hidden){ hiddenAt=Date.now(); return; }
+  if(cryptoKey && hiddenAt && Date.now()-hiddenAt > 60000){
+    const rec=storedRecord();
+    if(rec && rec.enc){ cryptoKey=null; S=DEFAULT_STATE(); S.assets=[]; render(); askUnlock(rec); }
+  }
+});
+
+/* =====================================================================
    DÉMARRAGE
    ===================================================================== */
 let resizeT=null, lastW=window.innerWidth;
@@ -1039,9 +1261,13 @@ window.addEventListener("resize", ()=>{
 
 try{ localStorage.setItem(KEY+"-t","1"); localStorage.removeItem(KEY+"-t"); }catch(_){ storageOK=false; }
 buildSwatches();
-loadLocal();
-render();
-if(!storageOK) flagNoStorage();
+(function boot(){
+  const rec = storedRecord();
+  if(rec && rec.enc && SUB){ render(); renderSecurity(); askUnlock(rec); return; }
+  loadPlainOrV1();
+  render(); renderSecurity();
+  if(!storageOK) flagNoStorage();
+})();
 
 if("serviceWorker" in navigator)
   window.addEventListener("load", ()=> navigator.serviceWorker.register("sw.js").catch(()=>{}));
